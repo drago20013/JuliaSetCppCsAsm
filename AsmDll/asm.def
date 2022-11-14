@@ -1,0 +1,4 @@
+LIBRARY AsmDll
+EXPORTS 
+CalculateMandelbrotASM
+Dummy

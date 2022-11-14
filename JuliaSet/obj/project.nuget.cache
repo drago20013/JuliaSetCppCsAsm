@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "wHdYnIwKWmOQlYUbjfSpecjJGrJqckTLPlf3gC7UL0C68qDy5bVPsb1v26UYmn53IEF9rOFSPUUJ56OvsGol4g==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Michal\\source\\repos\\JuliaSet\\JuliaSet\\JuliaSet.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Michal\\.nuget\\packages\\microsoft.win32.systemevents\\7.0.0\\microsoft.win32.systemevents.7.0.0.nupkg.sha512",
+    "C:\\Users\\Michal\\.nuget\\packages\\system.drawing.common\\7.0.0\\system.drawing.common.7.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}

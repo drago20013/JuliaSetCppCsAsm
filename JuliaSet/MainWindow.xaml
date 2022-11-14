@@ -1,0 +1,17 @@
+﻿<Window x:Class="JuliaSet.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:JuliaSet"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="900" Width="1600">
+    <Grid>
+        <Image x:Name="image" HorizontalAlignment="Left" Height="800" Margin="0,10,0,0" VerticalAlignment="Top" Width="800"/>
+        <Image x:Name="image2" HorizontalAlignment="Right" Height="800" Margin="800,10,0,0" VerticalAlignment="Top" Width="800"/>
+        <TextBlock x:Name="textBlock" HorizontalAlignment="Left" Margin="22,828,0,0" TextWrapping="Wrap" Text="C# Time:" VerticalAlignment="Top"/>
+        <TextBlock x:Name="cTime" HorizontalAlignment="Left" Margin="72,828,0,0" TextWrapping="Wrap" Text="TextBlock" VerticalAlignment="Top"/>
+        <TextBlock x:Name="textBlock1" HorizontalAlignment="Left" Margin="200,828,0,0" TextWrapping="Wrap" Text="AsmTime:" VerticalAlignment="Top" Width="54"/>
+        <TextBlock x:Name="asmTime" HorizontalAlignment="Left" Margin="260,828,0,0" TextWrapping="Wrap" Text="TextBlock" VerticalAlignment="Top"/>
+    </Grid>
+</Window>

@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "JuliaSet": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}
