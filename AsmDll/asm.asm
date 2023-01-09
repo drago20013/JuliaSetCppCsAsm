@@ -5,46 +5,48 @@ AAMask dd 4 dup(0ffffffffh, 0)
 BBMask dd 4 dup(0, 0ffffffffh)
 AbsMask dd 2 dup(0, 0, 07fffffffh, 07fffffffh)
 WasSet dq 4 dup(-1)
-Ones dd 8 dup(1)
+Ones real4 8 dup(1.0)
 Threashold real4 2 dup(0.0, 0.0, 16.0, 16.0)
-JuliaConst real4 4 dup(-0.4, -0.59)
-
-CRealPart real4 4 dup(?)
-CImagPart real4 4 dup(?)
 Twos real4 4 dup(0.0, 2.0)
 ActualIterations dq 4 dup(0)
-MaxIteration dd ?
+MaxBrightness real4 8 dup(255.0)
 .code
- ;CalculateMandelbrotASM(
- ;ComplexCoord* inCoord, RCX
- ;Pixel* outBMP,		 RDX
- ;int width,			 R8
- ;int height);			 R9
-Dummy proc
-  ret
-Dummy endp
-CalculateMandelbrotASM proc
-	mov [MaxIteration], 255
+ ;CalculateMandelbrotASM
+ ;ComplexCoord* inCoord,	RCX
+ ;Pixel* outBMP,			RDX
+ ;Settings settings,		R8 
+							;c_r 
+							;c_i +4
+							;size +8
+							;maxIter +12
+JuliaAsm proc
+	mov r9d, dword ptr[r8+8] ; storing size
+	shr r9d, 2 ; dividing it by 4 bcuz we process 4 cordinates at the time, this becomes our main counter
+	mov r11d, dword ptr[r8+12] ; storing maxIterations, internal loop counter
+	vmovq  xmm10, r11
+	vpinsrq xmm10, xmm10, r11, 1
+	vinserti128 ymm10, ymm10, xmm10, 1
+	vmovapd ymm7, ymm10 ;ymm7 = maxIterations
+	mov r10, qword ptr[r8] ; Storing C number 
+	vmovq  xmm10, r10
+	vpinsrq xmm10, xmm10, r10, 1
+	vinserti128 ymm10, ymm10, xmm10, 1 ; after broadcasting we have 4 copies of (c_real, c_imag) in ymm10
+	vmovaps	ymm8, [AbsMask]; ymm8 = AbsMask
+	vmovaps ymm9, [Threashold]; ymm9 = Threashold
+	vmovaps	ymm11, [AAMask]; ymm11 = AAMask 
+	vmovaps	ymm12, [BBMask]; ymm12 = BBMask 
+	vmovaps	ymm13, [Twos]; ymm13 = Twos 
+	vmovaps	ymm14, [AlphaMask]; ymm14 = AlphaMask 
+	vmovaps	ymm15, [NotAlphaMask]; ymm15 = NotAlphaMask 
+	 
 
-	imul r9d, r8d
-	shr r9d, 2
-	mov r11d, [MaxIteration] ; counter
-	
 MainLoop:
-	;do stuff
 	vmovups	ymm0, ymmword ptr[rcx]
-	;vmovaps ymm1, ymm0
-	;julia c = -0.4 + -0.59
-	vmovaps	ymm1, [JuliaConst]
 	
-	
-
-
-
-	xor r10, r10
+	xor r10, r10 ; current iterations 
 
 	mov rax, -1 
-	vmovq xmm2,  rax
+	vmovq xmm2, rax
 	vpbroadcastq ymm2, xmm2
 	vmovapd [WasSet], ymm2
 	mov rax, 0
@@ -57,8 +59,8 @@ IterLoop:
 	vmulps ymm3, ymm0, ymm0 ;a*a and b*b
 	vmovaps ymm4, ymm3 ; duplicate
 
-	vandps ymm2, ymm3, [AAMask] ; get a*a
-	vandps ymm4, ymm4 ,[BBMask] ; get b*b
+	vandps ymm2, ymm3, ymm11 ; get a*a
+	vandps ymm4, ymm4, ymm12 ; get b*b
 
 	vpshufd ymm2, ymm2, 93h ;not sure if this shit works
 
@@ -68,39 +70,37 @@ IterLoop:
 	vmovaps ymm3, ymm0 ; duplicate
 	vmovaps ymm4, ymm0 ; duplicate ;already in ymm1 and ymm0
 
-	vandps ymm3, ymm0, [BBMask] ; get b
-	vandps ymm4, ymm4, [AAMask]; get a
+	vandps ymm3, ymm0, ymm12 ; get b
+	vandps ymm4, ymm4, ymm11; get a
 
 	vpshufd ymm4, ymm4, 93h
 
 	vmulps ymm6, ymm3, ymm4 ;a*b
-	vmulps ymm6, ymm6, [Twos] ; bb = 2*a*b
+	vmulps ymm6, ymm6, ymm13 ; bb = 2*a*b
 
 	;merge aa and bb to ymm2
 	vpshufd ymm2, ymm2, 39h
 	vorps ymm2, ymm2, ymm6
 
 	;Z = (aa+bb*i) + (ca+cb*i)
-	vaddps ymm0, ymm1, ymm2
+	vaddps ymm0, ymm10, ymm2
 
-	; if (Math.Abs(inComplexCoord[i].x + inComplexCoord[i].y) > 16)
+	;if (Math.Abs(inComplexCoord[i].x + inComplexCoord[i].y) > 16)
 	;a - ymm4
 	;b - ymm3
-	vhaddps ymm3, ymm0, ymm0 ; inComplexCoord[i].x + inComplexCoord[i].y
-	;vmovaps ymm5, [AbsMask]
-	vandps ymm3, ymm3, [AbsMask] ; Abs
+	vhaddps ymm3, ymm0, ymm0; inComplexCoord[i].x + inComplexCoord[i].y
+	
+	vandps ymm3, ymm3, ymm8; Abs
 
 
 	;vmovaps ymm5, [Threashold]
 	
 	;if larger break and save number of iterations--------
 	
-	vcmpgtps ymm3, ymm3, [Threashold]
+	vcmpgtps ymm3, ymm3, ymm9
 
 	vpshufd ymm3, ymm3, 00110110b
 
-	;sub r10d, r8d
-	;sub r10d, 1
 	vmovd xmm2, r10d
 	vpbroadcastq ymm2, xmm2
 	vmovapd ymm4, [ActualIterations] ; previous values
@@ -161,7 +161,7 @@ NotSet4:
 
 	;xmm2 1 0
 	;xmm5 3 2
-	;check if all were set, jump out to _esc
+	;check if all were set, if yes jump(actually just move further) out to _esc
 
 	inc r10d
 	cmp r10d, r11d
@@ -169,49 +169,82 @@ NotSet4:
 
 IterLoop_esc:
 
+	;=======================================================
+	;Coloring
+
 	vmovapd ymm2, [ActualIterations]
+	;STEP 1: Remap actual iterations from 0-MaxTterations to 0-1 floating point
+	;ymm2 = toLow + (ymm2 - fromLow) * (toHigh - toLow) / (fromHigh - fromLow)
+
+	;(ymm2 - fromLow) = ymm2
+	;vxorpd ymm0, ymm0, ymm0; ymm0 = 0 - > fromLow		;
+	;vsubpd ymm2, ymm2, ymm0; ymm2 = values - fromLow	; In our case always value - 0 so skipping these steps
+
+	;(toHigh - toLow) = ymm3
+	;vmovapd ymm3, ymmword [Ones]; ymm3 = 1.0 -> toHigh	;
+	;vsubpd ymm3, ymm3, ymm0							; again 1 - 0 is 1 always
+
+	;(ymm2 - fromLow) * (toHigh - toLow) = ymm2
+	;vmulpd	ymm2, ymm2, ymm3; and once again 5*1 is 5 so skipping
+
+	;(fromHigh - fromLow), ymm7 -> maxIter -> fromHigh, fromLow=0 so useless
+	;(ymm2 - fromLow) * (toHigh - toLow) / (fromHigh - fromLow)
+	vdivps ymm2, ymm2, ymm7
+
+	;lastly add toLow to ymm2, but toLow is 0 so useless
+	;now in ymm2 should be the values mapped from 0->maxIter to 0->1
+
+	;STEP 2: Take sqrt of these values
+
+	vsqrtps ymm2, ymm2
+
+	;STEP 3: Remap values after sqrt from 0-1 to 0-255
+
+	;load MaxBrightness(toHigh) to ymm3, and substract from it toLow, but its 0 so again result is MaxBrightness
+	vmovaps ymm3, [MaxBrightness]
+	
+	;(ymm2(values-fromLow) * ymm3(toHigh - toLow) = ymm2
+	vmulps	ymm2, ymm2, ymm3
+
+	;(ymm2 - fromLow) * (toHigh - toLow) / (fromHigh - fromLow), fromHigh is [Ones], fromLow is 0
+	;so its ymm2 / [Ones] and anything divided by 1 is itself so skipping this step
+	
+	;lastly add toLow to ymm2, but toLow is 0 so useless
+	;now in ymm2 should be the values mapped from 0->1 to 0->255
+	;Values should be back in the ymm2
+
 	;calculate each part of color and put it back to pixel
-	vmovups	ymm0, ymmword ptr[rdx]
-	vandps ymm0, ymm0, [NotAlphaMask]
+	;vmovups	ymm0, ymmword ptr[rdx]
+	
+	vextractf128 xmm4, ymm2, 0
 	;first pixel
-	vpbroadcastd ymm3, xmm2 
-	vandps ymm3, ymm3, [AlphaMask]
-	vorpd ymm3, ymm3, ymm0
-
-	vextracti128 xmm0, ymm0, 1
+	extractps eax, xmm4, 0
+	vmovd xmm3, eax
+	vbroadcastss xmm3, xmm3
 	;second
-	pextrq rax, xmm2, 1
-	;mov rax, 6
-	vmovq xmm1, rax
-	vpbroadcastd ymm5, xmm1 
-	vandps ymm5, ymm5, [AlphaMask]
-	vorpd ymm5, ymm5, ymm0
+	extractps eax, xmm4, 2
+	vmovd xmm4, eax
+	vbroadcastss xmm4, xmm4
 
-	vinserti128 ymm3, ymm3, xmm5, 1
+	vinsertf128 ymm3, ymm3, xmm4, 1
 
 	vmovupd ymmword ptr[rdx], ymm3 ; save two pixels data and move pointer and load data for next two	
 	add rdx, 32
 
-	vmovups	ymm0, ymmword ptr[rdx]
-	vandps ymm0, ymm0, [NotAlphaMask]
-	vextracti128 xmm2, ymm2, 1
+	vextractf128 xmm4, ymm2, 1
 	;third
-	vpbroadcastd ymm3, xmm2 
-	vandps ymm3, ymm3, [AlphaMask]
-	vorpd ymm3, ymm3, ymm0
+	extractps eax, xmm4, 0
+	vmovd xmm3, eax
+	vbroadcastss xmm3, xmm3
+	;fourth
+	extractps eax, xmm4, 2
+	vmovd xmm4, eax
+	vbroadcastss xmm4, xmm4
 
-	vextracti128 xmm0, ymm0, 1
-	;second
-	pextrq rax, xmm2, 1
-	;mov rax, 7
-	vmovq xmm1, rax
-	vpbroadcastd ymm5, xmm1 
-	vandps ymm5, ymm5, [AlphaMask]
-	vorpd ymm5, ymm5, ymm0
-
-	vinserti128 ymm3, ymm3, xmm5, 1
+	vinsertf128 ymm3, ymm3, xmm4, 1
 
 	vmovupd ymmword ptr[rdx], ymm3
+
 	add rdx, 32
 	
 	add rcx, 32
@@ -219,5 +252,5 @@ IterLoop_esc:
 	jnz MainLoop
 
 	ret
-CalculateMandelbrotASM endp
+JuliaAsm endp
 end

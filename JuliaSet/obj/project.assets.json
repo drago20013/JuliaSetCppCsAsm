@@ -133,11 +133,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Michal\\source\\repos\\JuliaSet\\JuliaSet\\JuliaSet.csproj",
+      "projectUniqueName": "C:\\Users\\Michal\\source\\repos\\JuliaSetCppCsAsm\\JuliaSet\\JuliaSet.csproj",
       "projectName": "JuliaSet",
-      "projectPath": "C:\\Users\\Michal\\source\\repos\\JuliaSet\\JuliaSet\\JuliaSet.csproj",
+      "projectPath": "C:\\Users\\Michal\\source\\repos\\JuliaSetCppCsAsm\\JuliaSet\\JuliaSet.csproj",
       "packagesPath": "C:\\Users\\Michal\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Michal\\source\\repos\\JuliaSet\\JuliaSet\\obj\\",
+      "outputPath": "C:\\Users\\Michal\\source\\repos\\JuliaSetCppCsAsm\\JuliaSet\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "D:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

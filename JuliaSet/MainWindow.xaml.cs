@@ -24,16 +24,16 @@ namespace JuliaSet
     public partial class MainWindow : Window
     {
         [DllImport("AsmDll.dll")]
-        private static unsafe extern void CalculateMandelbrotASM(ComplexCoord* inCoord, Pixel* outBMP, int width, int height);
+        private static unsafe extern void JuliaAsm(ComplexCoord* inCoord, Pixel* outBMP, UserSettings settings);
+        [DllImport("CDll.dll")]
+        private static unsafe extern void JuliaCpp(ComplexCoord* inCoord, Pixel* outBMP, UserSettings settings);
 
-        [DllImport("AsmDll.dll")]
-        private static unsafe extern void Dummy();
         public struct Pixel
         {
-            public int r; //32-bits
-            public int g;
-            public int b;
-            public int a;
+            public float r; //32-bits
+            public float g;
+            public float b;
+            public float a;
             public Pixel()
             {
                 r = 255;
@@ -42,11 +42,25 @@ namespace JuliaSet
                 a = 255;
             }
         }
-
         public struct ComplexCoord
         {
-            public float x; //32-bits
-            public float y;
+            public float x; //32-bits  xxxxxxxxxxxxxxxx... xxxx yyyyyyyy...yyyy
+            public float y; //      
+        }
+
+        public struct UserSettings
+        {
+            public float c_real;
+            public float c_imag;
+            public int size;
+            public int maxIter;
+            public UserSettings(float c_r, float c_im, int size, int maxIter)
+            {
+                c_real = c_r;
+                c_imag = c_im;
+                this.size = size;
+                this.maxIter = maxIter;
+            }
         }
 
         public MainWindow()
@@ -56,24 +70,86 @@ namespace JuliaSet
             int width = (int)image.Width;
             int height = (int)image.Height;
 
-            ComplexCoord[] complexCoords = new ComplexCoord[width * height];
-            ComplexCoord[] complexCoordsASM = new ComplexCoord[width * height];
+/*            int width = 2;
+            int height = 2;*/
+            int size = width * height;
+
+            ComplexCoord[] newComplexCoord = new ComplexCoord[size];
+            ComplexCoord[] newComplexCoordCPP = new ComplexCoord[size];
+            ComplexCoord[] newComplexCoordASM = new ComplexCoord[size];
+            UserSettings settings = new UserSettings(-0.8f, 0.156f, size, 255);
+
             Pixel[] outBMP = new Pixel[width * height];
             Pixel[] outBMPASM = new Pixel[width * height];
-            for (int i = 0; i < width * height; i++) outBMP[i] = new Pixel();
-            for (int i = 0; i < width * height; i++) outBMPASM[i] = new Pixel();
+            Pixel[] outBMPCPP = new Pixel[width * height];
+            for (int i = 0; i < size; i++) outBMP[i] = new Pixel();
+            for (int i = 0; i < size; i++) outBMPASM[i] = new Pixel();
+            for (int i = 0; i < size; i++) outBMPCPP[i] = new Pixel();
 
             //==============================
-            InitData(complexCoords, width, height);
+            InitData(newComplexCoord, width, height);
+            InitData(newComplexCoordASM, width, height);
+            InitData(newComplexCoordCPP, width, height);
 
             var watch = new System.Diagnostics.Stopwatch();
-            var watch2 = new System.Diagnostics.Stopwatch();
+            float time = 0.0f;
+            JuliaSet(newComplexCoord, outBMP, settings);
+            for (int i = 0; i < 10; i++)
+            {
+                InitData(newComplexCoord, width, height);
+                watch.Start();
+                JuliaSet(newComplexCoord, outBMP, settings);
+                watch.Stop();
+                time += watch.ElapsedMilliseconds;
+            }
+            time = time / 10;
+            cTime.Text = time.ToString() + "ms.";
 
-            watch.Start();
-            CalculateMandelbrot(complexCoords, outBMP, width, height);
-            watch.Stop();
+            //==============================
+            time = 0;
+            unsafe
+            {
+                fixed (ComplexCoord* cordAddr = newComplexCoordASM)
+                {
+                    fixed (Pixel* outBMPAddr = outBMPASM)
+                    {
+                        JuliaAsm(cordAddr, outBMPAddr, settings);
+                        for (int i = 0; i < 10; i++)
+                        {
+                            InitData(newComplexCoordASM, width, height);
+                            watch.Start();
+                            JuliaAsm(cordAddr, outBMPAddr, settings);
+                            watch.Stop();
+                            time += watch.ElapsedMilliseconds;
+                        }
+                    }
+                }
+            }
 
-            cTime.Text = watch.ElapsedMilliseconds.ToString() + "ms.";
+            time = time / 10;
+            asmTime.Text = time.ToString() + "ms.";
+            time = 0;
+            unsafe
+            {
+                fixed (Pixel* outBMPAddr = outBMPCPP)
+                {
+                    fixed (ComplexCoord* newCoordCPPAddr = newComplexCoordCPP)
+                    {
+                        JuliaCpp(newCoordCPPAddr, outBMPAddr, settings);
+                        for (int i = 0; i < 10; i++)
+                        {
+                            InitData(newComplexCoordCPP, width, height);
+                            watch.Start();
+                            JuliaCpp(newCoordCPPAddr, outBMPAddr, settings);
+                            watch.Stop();
+                            time += watch.ElapsedMilliseconds;
+                        }
+                    }
+                }
+            }
+
+            time = time / 10;
+            cppTime.Text = time.ToString() + "ms.";
 
             Bitmap bitmap = new(width, height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
             System.Drawing.Color pixelColor;
@@ -81,45 +157,25 @@ namespace JuliaSet
             for (int y = 0; y < height; y++)
                 for (int x = 0; x < width; x++)
                 {
-                    pixelColor = System.Drawing.Color.FromArgb((int)outBMP[y * width + x].a, (int)outBMP[y * width + x].r, (int)outBMP[y * width + x].g, (int)outBMP[y * width + x].b);
+                    pixelColor = System.Drawing.Color.FromArgb(255, (int)outBMPCPP[y * width + x].r, (int)outBMPCPP[y * width + x].g, (int)outBMPCPP[y * width + x].b);
                     bitmap.SetPixel(x, y, pixelColor);
                 }
 
             bitmap.Save("../../../JuliaSet/images/Set.png");
-            image.Source = new BitmapImage(new Uri("C:\\Users\\Michal\\source\\repos\\JuliaSet\\JuliaSet\\images\\Set.png", UriKind.Absolute));
-
-            //==============================
-            InitData(complexCoordsASM, width, height);
-
-            unsafe
-            {
-                fixed(ComplexCoord* inCoordAddr = complexCoordsASM)
-                {
-                    fixed(Pixel* outBMPAddr = outBMPASM)
-                    {
-                        CalculateMandelbrotASM(inCoordAddr, outBMPAddr, width, height);
-                        watch2.Start();
-                        CalculateMandelbrotASM(inCoordAddr, outBMPAddr, width, height);
-                        watch2.Stop();
-                    }
-                }
-            }
-
-            asmTime.Text = watch2.ElapsedMilliseconds.ToString() + "ms.";
+            image.Source = new BitmapImage(new Uri("C:\\Users\\Michal\\source\\repos\\JuliaSetCppCsAsm\\JuliaSet\\images\\Set.png", UriKind.Absolute));
 
             Bitmap bitmapASM = new(width, height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
 
             for (int y = 0; y < height; y++)
                 for (int x = 0; x < width; x++)
                 {
-                    pixelColor = System.Drawing.Color.FromArgb((int)outBMPASM[y * width + x].a, (int)outBMPASM[y * width + x].r, (int)outBMPASM[y * width + x].g, (int)outBMPASM[y * width + x].b);
+                    pixelColor = System.Drawing.Color.FromArgb(255, (int)outBMPASM[y * width + x].r, (int)outBMPASM[y * width + x].g, (int)outBMPASM[y * width + x].b);
                     bitmapASM.SetPixel(x, y, pixelColor);
                 }
 
             bitmapASM.Save("../../../JuliaSet/images/Set2.png");
-            image2.Source = new BitmapImage(new Uri("C:\\Users\\Michal\\source\\repos\\JuliaSet\\JuliaSet\\images\\Set2.png", UriKind.Absolute));
+            image2.Source = new BitmapImage(new Uri("C:\\Users\\Michal\\source\\repos\\JuliaSetCppCsAsm\\JuliaSet\\images\\Set2.png", UriKind.Absolute));
         }
-
         public static void InitData(ComplexCoord[] inComplexCoord, int width, int height)
         {
             for (int y = 0; y < height; ++y)
@@ -132,9 +188,10 @@ namespace JuliaSet
             }
         }
 
-        public static void CalculateMandelbrot(ComplexCoord[] inComplexCoord, Pixel[] outBMP, int width, int height)
-        {
-            int maxIterations = 255;
+        public static void JuliaSet(ComplexCoord[] inComplexCoord, Pixel[] outBMP, UserSettings settings) {
+            //Z = Z^2 + C
+
+            int maxIterations = settings.maxIter;
             //C = ca + cb*i
             float ca; //C real part
             float cb; //C imaginary part
@@ -142,28 +199,32 @@ namespace JuliaSet
             //double a; //Z real part 
             //double b; //Z imaginary part
 
-            for (int i = 0; i < height * width; ++i)
+            for (int i = 0; i < settings.size; ++i)
             {
                 //For each pixel coordinate
                 //ca = inComplexCoord[i].x; // C real part is equal to the real part mapped from coordinates
                 //cb = inComplexCoord[i].y; // C imaginary part is equal to the real part mapped from coordinates
 
                 // When instead of having different C number for each pixel we asign it to specific number for all pixels we get Julia Set.
-                ca = -0.4f;
-                cb = -0.59f;
-                int n;
+                ca = settings.c_real;
+                cb = settings.c_imag;
+                int n = 0;
 
-                for (n = 0; n < maxIterations; ++n)
+                for (; n < maxIterations; ++n)
                 {
+                    float aa = inComplexCoord[i].x * inComplexCoord[i].x;
+                    float bb = inComplexCoord[i].y * inComplexCoord[i].y;
+
+                    //COMPUTE NEXT
                     //Z = Z^2 + C
 
                     //Z^2
-                    float aa = inComplexCoord[i].x * inComplexCoord[i].x - inComplexCoord[i].y * inComplexCoord[i].y; // new Z^2 real part
-                    float bb = 2 * inComplexCoord[i].x * inComplexCoord[i].y; // new Z^2 imaginary part
+                    float newReal = aa - bb; // new Z^2 real part
+                    float newImag = 2 * inComplexCoord[i].x * inComplexCoord[i].y; // new Z^2 imaginary part
 
                     //Z = Z^2 + C, Z = a + bi, so Z = Z^2 + C is Z = (aa + ca) + (bb + cb)i
-                    inComplexCoord[i].x = aa + ca; //Z real 
-                    inComplexCoord[i].y = bb + cb;
+                    inComplexCoord[i].x = newReal + ca; //Z real 
+                    inComplexCoord[i].y = newImag + cb;
 
                     //Condition for determaining if the Z for given coordinates is bounded, can be adjusted
                     if (Math.Abs(inComplexCoord[i].x + inComplexCoord[i].y) > 16)
@@ -172,10 +233,7 @@ namespace JuliaSet
                     }
                 }
 
-                //Nice gray scale coloring, we can do it with actual colors, also doesn't matter for logic part 
-                //outBMP[i].r = (int)Remap((float)Math.Sqrt(Remap(n, 0, maxIterations, 0, 1)), 0, 1, 0, 255);
-                //outBMP[i].g = (int)Remap((float)Math.Sqrt(Remap(n, 0, maxIterations, 0, 1)), 0, 1, 0, 255);
-                //outBMP[i].b = (int)Remap((float)Math.Sqrt(Remap(n, 0, maxIterations, 0, 1)), 0, 1, 0, 255);
+                //Nice gray scale coloring
 
                 if (n == maxIterations)
                 {
@@ -185,9 +243,9 @@ namespace JuliaSet
                 }
                 else
                 {
-                    outBMP[i].r = n;
-                    outBMP[i].g = n;
-                    outBMP[i].b = n;
+                    outBMP[i].r = Remap((float)Math.Sqrt(Remap(n, 0, maxIterations, 0, 1)), 0, 1, 0, 255);
+                    outBMP[i].g = Remap((float)Math.Sqrt(Remap(n, 0, maxIterations, 0, 1)), 0, 1, 0, 255);
+                    outBMP[i].b = Remap((float)Math.Sqrt(Remap(n, 0, maxIterations, 0, 1)), 0, 1, 0, 255);
                 }
             }
         }

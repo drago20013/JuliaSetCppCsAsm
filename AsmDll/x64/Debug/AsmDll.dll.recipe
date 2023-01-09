@@ -2,7 +2,7 @@
 <Project>
   <ProjectOutputs>
     <ProjectOutput>
-      <FullPath>C:\Users\Michal\source\repos\JuliaSet\x64\Debug\net6.0-windows\AsmDll.dll</FullPath>
+      <FullPath>C:\Users\Michal\source\repos\JuliaSetCppCsAsm\x64\Debug\net6.0-windows\AsmDll.dll</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles />

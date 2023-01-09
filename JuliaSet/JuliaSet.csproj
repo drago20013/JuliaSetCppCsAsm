@@ -5,7 +5,7 @@
     <TargetFramework>net6.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
-    <BaseOutputPath>C:\Users\Michal\source\repos\JuliaSet\x64</BaseOutputPath>
+    <BaseOutputPath>C:\Users\Michal\source\repos\JuliaSetCppCsAsm\x64</BaseOutputPath>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
 

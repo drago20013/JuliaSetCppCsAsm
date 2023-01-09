@@ -11,7 +11,9 @@
         <Image x:Name="image2" HorizontalAlignment="Right" Height="800" Margin="800,10,0,0" VerticalAlignment="Top" Width="800"/>
         <TextBlock x:Name="textBlock" HorizontalAlignment="Left" Margin="22,828,0,0" TextWrapping="Wrap" Text="C# Time:" VerticalAlignment="Top"/>
         <TextBlock x:Name="cTime" HorizontalAlignment="Left" Margin="72,828,0,0" TextWrapping="Wrap" Text="TextBlock" VerticalAlignment="Top"/>
-        <TextBlock x:Name="textBlock1" HorizontalAlignment="Left" Margin="200,828,0,0" TextWrapping="Wrap" Text="AsmTime:" VerticalAlignment="Top" Width="54"/>
-        <TextBlock x:Name="asmTime" HorizontalAlignment="Left" Margin="260,828,0,0" TextWrapping="Wrap" Text="TextBlock" VerticalAlignment="Top"/>
+        <TextBlock x:Name="textBlock1" HorizontalAlignment="Left" Margin="198,828,0,0" TextWrapping="Wrap" Text="AsmTime:" VerticalAlignment="Top" Width="54"/>
+        <TextBlock x:Name="asmTime" HorizontalAlignment="Left" Margin="258,828,0,0" TextWrapping="Wrap" Text="TextBlock" VerticalAlignment="Top"/>
+        <TextBlock x:Name="textBlock2" HorizontalAlignment="Left" Margin="390,828,0,0" TextWrapping="Wrap" Text="CppTime:" VerticalAlignment="Top" Width="54"/>
+        <TextBlock x:Name="cppTime" HorizontalAlignment="Left" Margin="450,828,0,0" TextWrapping="Wrap" Text="TextBlock" VerticalAlignment="Top"/>
     </Grid>
 </Window>
