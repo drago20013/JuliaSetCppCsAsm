@@ -42,28 +42,48 @@ MaxBrightness real4 8 dup(255.0)
 							;size +8
 							;maxIter +12
 JuliaAsm proc
-	mov r9d, dword ptr[r8+8] ; storing size
-	shr r9d, 2 ; dividing it by 4 bcuz we process 4 cordinates at the time, this becomes our main counter
+	mov r9d, dword ptr[r8+8] 
+	;It starts by loading a 32-bit value from memory at the address in the R8 register plus 8 bytes into the R9 register. This value represents the size of an array of complex numbers.
+
+	shr r9d, 2 
+	;shifts the bits in the R9 register to the right by 2, which is equivalent to dividing the value stored in R9 by 4. This value is used as a main counter for processing the array of complex numbers.
+
 	mov r11d, dword ptr[r8+12] ; storing maxIterations, internal loop counter
+	;loads a 32-bit value from memory at the address in the R8 register plus 12 bytes into the R11 register. This value represents the maximum number of iterations that the procedure will perform on each complex number.
+
+	;The next group of instructions are related to broadcasting, by that it loads 64-bit value from R11 into xmm10, then duplicating the 64-bit value from xmm10 into xmm10 and then 128-bit value from xmm10 into ymm10. Then this ymm10 is loaded into another register ymm7 for the purpose of MaxIterations.
 	vmovq  xmm10, r11
 	vpinsrq xmm10, xmm10, r11, 1
 	vinserti128 ymm10, ymm10, xmm10, 1
 	vmovapd ymm7, ymm10 ;ymm7 = maxIterations
-	mov r10, qword ptr[r8] ; Storing C number 
+
+	mov r10, qword ptr[r8] 
+	;loads a 64-bit value from memory at the address in the R8 register into the R10 register. This value represents the constant complex number 'C' that is used in the calculation for each complex number in the array.
 	vmovq  xmm10, r10
+	;will move the 64-bit value from r10 register and store it in the least significant 64 bits of the xmm10 register. The most significant 64 bits of xmm10 will be left unchanged.
 	vpinsrq xmm10, xmm10, r10, 1
+	;performs an insert operation on the XMM10 register. It takes the lower 64-bits of the XMM10 register and the 64-bit value in R10, and inserts them into a 128-bit destination specified by the destination XMM10 register.
+	;This sequence is a bit tricky but it's a way to copy a 64-bit value into a 128-bit XMM register, in this case, it's used to insert the 64-bit value of C into the XMM10 register in order to have 2 copies of C (c_real, c_imag) in this register.
+
 	vinserti128 ymm10, ymm10, xmm10, 1 ; after broadcasting we have 4 copies of (c_real, c_imag) in ymm10
-	vmovaps	ymm8, [AbsMask]; ymm8 = AbsMask
-	vmovaps ymm9, [Threashold]; ymm9 = Threashold
-	vmovaps	ymm11, [AAMask]; ymm11 = AAMask 
-	vmovaps	ymm12, [BBMask]; ymm12 = BBMask 
-	vmovaps	ymm13, [Twos]; ymm13 = Twos 
-	vmovaps	ymm14, [AlphaMask]; ymm14 = AlphaMask 
-	vmovaps	ymm15, [NotAlphaMask]; ymm15 = NotAlphaMask 
+	
+	vmovaps	ymm8, [AbsMask]; ymm8 = AbsMask, this is an array of 4 doublewords, each pair is initialised as 0 and 0x7fffffff which representing the absolute value of the 2's complement representation of a signed 32-bit integer.
+	
+	vmovaps ymm9, [Threashold]; ymm9 = Threashold, his is an array of 4 single-precision floating-point values, each pair is initialized with 0.0 and 16.0
+	
+	vmovaps	ymm11, [AAMask]; ymm11 = AAMask, this is an array of 4 doublewords, where each pair is initialized with 0xffffffff and 0
+	vmovaps	ymm12, [BBMask]; ymm12 = BBMask, this is an array of 4 doublewords, where each pair is initialized with 0 and 0xffffffff
+
+	vmovaps	ymm13, [Twos]; ymm13 = Twos, this is an array of 4 single-precision floating-point values, each pair is initialized with 0.0 and 2.0
+
+	vmovaps	ymm14, [AlphaMask]; ymm14 = AlphaMask, this is an array of 8 doublewords with a pattern of 0xffffffff, 0xffffffff, 0xffffffff, 0, 0xffffffff, 0xffffffff, 0xffffffff, 0.
+
+	vmovaps	ymm15, [NotAlphaMask]; ymm15 = NotAlphaMask, this is an array of 8 doublewords with a pattern of 0,0,0,0,0,0,0,0 except for 4 copies of 0xffffffff
 	 
 
 MainLoop:
-	vmovups	ymm0, ymmword ptr[rcx]
+	vmovups	ymm0, ymmword ptr[rcx] ; loading coordinates
+	; it loads the 256-bit value into the YMM0 register as an unaligned packed single-precision floating-point value
 	
 	xor r10, r10 ; current iterations 
 
@@ -75,6 +95,9 @@ MainLoop:
 	vmovq xmm2,  rax
 	vpbroadcastq ymm2, xmm2
 	vmovapd [ActualIterations], ymm2
+	;this section of the code loads a 256-bit complex number into the YMM0 register and sets the initial values for "WasSet" array, "ActualIterations" array, and the current iteration counter.
+	;It also sets all elements in the WasSet array to -1, and all elements in the ActualIterations array to 0.
+	
 IterLoop:
 	;mov r10d, r8d ; to calculate actual iterations
 
