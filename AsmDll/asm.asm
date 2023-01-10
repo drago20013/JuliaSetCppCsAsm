@@ -115,14 +115,14 @@ IterLoop:
 	vandps ymm3, ymm0, ymm12 ; get b by ANDing {a , b , ....} * {Bmask}
 	vandps ymm4, ymm0, ymm11; get a
 
-	vpshufd ymm4, ymm4, 93h
+	vpshufd ymm4, ymm4, 93h ; shuffling to arrange the data in the desired way 
 
 	vmulps ymm6, ymm3, ymm4 ;a*b
 	vmulps ymm6, ymm6, ymm13 ; bb = 2*a*b
 
 	;merge aa and bb to ymm2
 	vpshufd ymm2, ymm2, 39h
-	vorps ymm2, ymm2, ymm6
+	vorps ymm2, ymm2, ymm6; bitwise OR ==> combining the values of aa and bb*i together in YMM2.
 
 	;Z = (aa+bb*i) + (ca+cb*i)
 	vaddps ymm0, ymm10, ymm2
@@ -130,12 +130,9 @@ IterLoop:
 	;if (Math.Abs(inComplexCoord[i].x + inComplexCoord[i].y) > 16)
 	;a - ymm4
 	;b - ymm3
-	vhaddps ymm3, ymm0, ymm0; inComplexCoord[i].x + inComplexCoord[i].y
+	vhaddps ymm3, ymm0, ymm0; inComplexCoord[i].x + inComplexCoord[i].y (horizontal addition)
 	
-	vandps ymm3, ymm3, ymm8; Abs
-
-
-	;vmovaps ymm5, [Threashold]
+	vandps ymm3, ymm3, ymm8; get the absolute values of (inComplexCoord[i].x + inComplexCoord[i].y) .
 	
 	;if larger break and save number of iterations--------
 	
@@ -144,23 +141,29 @@ IterLoop:
 	vpshufd ymm3, ymm3, 00110110b
 
 	vmovd xmm2, r10d
-	vpbroadcastq ymm2, xmm2
-	vmovapd ymm4, [ActualIterations] ; previous values
-	vandps ymm2, ymm2, ymm3
+	vpbroadcastq ymm2, xmm2 ;takes the 64-bit value in the XMM2 register and broadcast it
+	vmovapd ymm4, [ActualIterations] ; previous values after processing in last iteration
+
+	;this part is a safe guard to not override values for pixels that are already unbounded and save their needed number of iterations that will be used for the colors
+	vandps ymm2, ymm2, ymm3 ;
 	vandpd ymm2, ymm2, [WasSet]
 	vorpd ymm2, ymm2, ymm4
 
-	vmovapd [ActualIterations], ymm2
+	vmovapd [ActualIterations], ymm2 ; save the actual iteration for each pixel where it finished processing
 
-	pextrd eax, xmm3, 0
+;the next section is checking the current z for the each pixel of the group of 4 is unbounded or not 
+; then it updates its mask (which is temporarily saved in rsi)
+; until all 4 pixels are set (which means they went over the threshold which means they are unbound. then we move to the next group of the next 4 pixels)
+	pextrd eax, xmm3, 0 ; extract 1 dw from xmm whic represents the state of 1 pixel
 	mov rsi, -1
 	cmp eax, 0 ;; Set first one when greater than threashold
-	je NotSet1
+	je NotSet1 ;not yet bounded
 	mov rsi, 0
 
+;these 4 jumps are basically 
+;
 NotSet1:
 	pinsrq xmm2, rsi, 0
-
 	pextrd eax, xmm3, 2
 	mov rsi, -1
 	cmp eax, 0 ;; Set second one when greater than threashold
@@ -169,9 +172,7 @@ NotSet1:
 
 NotSet2:
 	pinsrq xmm2, rsi, 1
-
 	vextracti128 xmm4, ymm3, 1
-	 
 	pextrd eax, xmm4, 0
 	mov rsi, -1
 	cmp eax, 0 ;; Set third one when greater than threashold
