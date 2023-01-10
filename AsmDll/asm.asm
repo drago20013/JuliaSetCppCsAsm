@@ -97,26 +97,23 @@ MainLoop:
 	vmovapd [ActualIterations], ymm2
 	;this section of the code loads a 256-bit complex number into the YMM0 register and sets the initial values for "WasSet" array, "ActualIterations" array, and the current iteration counter.
 	;It also sets all elements in the WasSet array to -1, and all elements in the ActualIterations array to 0.
-	
+
 IterLoop:
 	;mov r10d, r8d ; to calculate actual iterations
 
-	vmulps ymm3, ymm0, ymm0 ;a*a and b*b
-	vmovaps ymm4, ymm3 ; duplicate
+	vmulps ymm3, ymm0, ymm0 ;a*a, b*b, .........
 
-	vandps ymm2, ymm3, ymm11 ; get a*a
-	vandps ymm4, ymm4, ymm12 ; get b*b
+;performs a bitwise AND operation on the elements
+	vandps ymm2, ymm3, ymm11 ; get a*a : a*a, 0, a*a, a .... 
+	vandps ymm4, ymm3, ymm12 ; get b*b : 0, b*b, 0, b*b , ..... 
 
-	vpshufd ymm2, ymm2, 93h ;not sure if this shit works
+	vpshufd ymm2, ymm2, 93h ;0, a*a, 0, a*a ... now we have the desired "order" to get new a 
 
 	vsubps ymm2, ymm2, ymm4 ;get aa = a*a - b*b
 	
-	;bb = 2*a*b
-	vmovaps ymm3, ymm0 ; duplicate
-	vmovaps ymm4, ymm0 ; duplicate ;already in ymm1 and ymm0
-
-	vandps ymm3, ymm0, ymm12 ; get b
-	vandps ymm4, ymm4, ymm11; get a
+	;now to get bb = 2*a*b
+	vandps ymm3, ymm0, ymm12 ; get b by ANDing {a , b , ....} * {Bmask}
+	vandps ymm4, ymm0, ymm11; get a
 
 	vpshufd ymm4, ymm4, 93h
 
