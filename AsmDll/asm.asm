@@ -1,15 +1,37 @@
 .data
 AlphaMask dd 3 dup (0ffffffffh), 0, 3 dup (0ffffffffh), 0
+;an array of 32-bit doublewords (dd) that is initialized with 3 copies of the value 0xffffffff, followed by a single 0, followed by another 3 copies of the value 0xffffffff, and another 0. This creates an array of 8 doublewords with a pattern of 0xffffffff, 0xffffffff, 0xffffffff, 0, 0xffffffff, 0xffffffff, 0xffffffff, 0.
+
 NotAlphaMask dd 3 dup (0), 0ffffffffh, 3 dup (0), 0ffffffffh
+;The "NotAlphaMask" is similar but consist of all zeroes except for 4 copies of 0xffffffff.
+
 AAMask dd 4 dup(0ffffffffh, 0)
 BBMask dd 4 dup(0, 0ffffffffh)
+;"AAMask" and "BBMask" are each arrays of 4 doublewords, where each pair of doublewords is initialized with 0xffffffff and 0.
+
 AbsMask dd 2 dup(0, 0, 07fffffffh, 07fffffffh)
+;"AbsMask" is an array of 4 doublewords, each pair is initialised as 0 and 0x7fffffff which representing the absolute value of the 2's complement representation of a signed 32-bit integer.
+
 WasSet dq 4 dup(-1)
+;an array of 8 quadwords, each initialized with the value -1 (0xffffffffffffffff).
+
 Ones real4 8 dup(1.0)
+;"Ones" is an array of 4 single-precision floating-point values, each initialized with the value 1.0
+
 Threashold real4 2 dup(0.0, 0.0, 16.0, 16.0)
+;"Threshold" is an array of 4 single-precision floating-point values, each pair is initialized with 0.0 and 16.0
+
 Twos real4 4 dup(0.0, 2.0)
+;"Twos" is an array of 4 single-precision floating-point values, each pair is initialized with 0.0 and 2.0
+
 ActualIterations dq 4 dup(0)
+;"ActualIterations" is an array of 8 quadwords, each initialized with the value 0.
+
 MaxBrightness real4 8 dup(255.0)
+;"MaxBrightness" is an array of 4 single-precision floating-point values, each initialized with the value 255.0
+
+;================================================================
+
 .code
  ;CalculateMandelbrotASM
  ;ComplexCoord* inCoord,	RCX
