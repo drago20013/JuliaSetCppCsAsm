@@ -45,39 +45,47 @@ MaxBrightness real4 8 dup(255.0)
 							;size +8
 							;maxIter +12
 JuliaAsm proc
+	;1- load pixels
 	mov r9d, dword ptr[r8+8] 
-	;It starts by loading a 32-bit value from memory at the address in the R8 register plus 8 bytes into the R9 register. This value represents the size of an array of complex numbers.
+	;It starts by loading a 32-bit value from memory at the address in the R8 register plus 8 bytes into the R9 register. This value represents the size of an array of pixels.
 
+	;2- initiate counter
 	shr r9d, 2 
 	;shifts the bits in the R9 register to the right by 2, which is equivalent to dividing the value stored in R9 by 4. This value is used as a main counter for processing the array of complex numbers.
 
-	mov r11d, dword ptr[r8+12] ; storing maxIterations, internal loop counter
+	;3- storing maxIterations, internal loop counter
+	mov r11d, dword ptr[r8+12] 
 	;loads a 32-bit value from memory at the address in the R8 register plus 12 bytes into the R11 register. This value represents the maximum number of iterations that the procedure will perform on each complex number.
 
+	;4- preparing the maxIterations counter
 	;The next group of instructions are related to broadcasting, by that it loads 64-bit value from R11 into xmm10, then duplicating the 64-bit value from xmm10 into xmm10 and then 128-bit value from xmm10 into ymm10. Then this ymm10 is loaded into another register ymm7 for the purpose of MaxIterations.
 	vmovq  xmm10, r11
-	vpinsrq xmm10, xmm10, r11, 1
-	vinserti128 ymm10, ymm10, xmm10, 1
+	vpbroadcastq ymm10, xmm10
 	vmovapd ymm7, ymm10 ;ymm7 = maxIterations
 
+	;5- initiating C
 	mov r10, qword ptr[r8] 
 	;loads a 64-bit value from memory at the address in the R8 register into the R10 register. This value represents the constant complex number 'C' that is used in the calculation for each complex number in the array.
+
+	;6- Brodcasting C 
 	vmovq  xmm10, r10
 	;will move the 64-bit value from r10 register and store it in the least significant 64 bits of the xmm10 register. The most significant 64 bits of xmm10 will be left unchanged.
-	vpinsrq xmm10, xmm10, r10, 1
-	;performs an insert operation on the XMM10 register. It takes the lower 64-bits of the XMM10 register and the 64-bit value in R10, and inserts them into a 128-bit destination specified by the destination XMM10 register.
-	;This sequence is a bit tricky but it's a way to copy a 64-bit value into a 128-bit XMM register, in this case, it's used to insert the 64-bit value of C into the XMM10 register in order to have 2 copies of C (c_real, c_imag) in this register.
 
-	vinserti128 ymm10, ymm10, xmm10, 1 ; after broadcasting we have 4 copies of (c_real, c_imag) in ymm10
+	vpbroadcastq ymm10, xmm10
+	;broadcasts from lower qw from xmm10 to all qw of ymm10 
+	; after broadcasting we have 4 copies of (c_real, c_imag) in ymm10
 	
+	;7- AbsMask
 	vmovaps	ymm8, [AbsMask]; ymm8 = AbsMask, this is an array of 4 doublewords, each pair is initialised as 0 and 0x7fffffff which representing the absolute value of the 2's complement representation of a signed 32-bit integer.
 	
+	;8-threshold (limit that decides whether a point is bounded or not)
 	vmovaps ymm9, [Threashold]; ymm9 = Threashold, his is an array of 4 single-precision floating-point values, each pair is initialized with 0.0 and 16.0
 	
 	vmovaps	ymm11, [AAMask]; ymm11 = AAMask, this is an array of 4 doublewords, where each pair is initialized with 0xffffffff and 0
+
 	vmovaps	ymm12, [BBMask]; ymm12 = BBMask, this is an array of 4 doublewords, where each pair is initialized with 0 and 0xffffffff
 
-	vmovaps	ymm13, [Twos]; ymm13 = Twos, this is an array of 4 single-precision floating-point values, each pair is initialized with 0.0 and 2.0
+	vmovaps	ymm13, [Twos]; ymm13 = Twos, this is an array of 4 single-precision floating-point values, each pair is initialized with 0.0 and 2.0 (used for doubling values, since we cant just shift for floats)
 
 	vmovaps	ymm14, [AlphaMask]; ymm14 = AlphaMask, this is an array of 8 doublewords with a pattern of 0xffffffff, 0xffffffff, 0xffffffff, 0, 0xffffffff, 0xffffffff, 0xffffffff, 0.
 
@@ -90,6 +98,9 @@ MainLoop:
 	
 	xor r10, r10 ; current iterations 
 
+	;Preparing the data initial state 
+	;this section of the code loads a 256-bit complex number into the YMM0 register and sets the initial values for "WasSet" array, "ActualIterations" array, and the current iteration counter.
+	;It also sets all elements in the WasSet array to -1, and all elements in the ActualIterations array to 0.
 	mov rax, -1 
 	vmovq xmm2, rax
 	vpbroadcastq ymm2, xmm2
@@ -98,81 +109,72 @@ MainLoop:
 	vmovq xmm2,  rax
 	vpbroadcastq ymm2, xmm2
 	vmovapd [ActualIterations], ymm2
-	;this section of the code loads a 256-bit complex number into the YMM0 register and sets the initial values for "WasSet" array, "ActualIterations" array, and the current iteration counter.
-	;It also sets all elements in the WasSet array to -1, and all elements in the ActualIterations array to 0.
 
 IterLoop:
-	;mov r10d, r8d ; to calculate actual iterations
 
-
+	;1- get newReal
 	vmulps ymm3, ymm0, ymm0 ;a*a, b*b, .........
 
-;performs a bitwise AND operation on the elements
-	vandps ymm2, ymm3, ymm11 ; get a*a : a*a, 0, a*a, a .... 
+	;performs a bitwise AND operation on the elements
+	vandps ymm2, ymm3, ymm11 ; get a*a : a*a, 0, a*a, 0 .... 
 	vandps ymm4, ymm3, ymm12 ; get b*b : 0, b*b, 0, b*b , ..... 
 
 	vpshufd ymm2, ymm2, 93h ;0, a*a, 0, a*a ... now we have the desired "order" to get new a 
 
-
 	vsubps ymm2, ymm2, ymm4 ;get newReal = a*a - b*b
 	
-
-	;now to get bb = 2*a*b
-	vandps ymm3, ymm0, ymm12 ; get b by ANDing {a , b , ....} * {Bmask}
-	vandps ymm4, ymm0, ymm11; get a
-
+	;2- get newImag part:
+	vandps ymm4, ymm0, ymm11; get a => { a 0 a 0 } 
+	vandps ymm3, ymm0, ymm12 ; get b  => {0 b 0 b}
 
 	vpshufd ymm4, ymm4, 93h ; shuffling to arrange the data in the desired way 
 
 	vmulps ymm6, ymm3, ymm4 ;a*b
 	vmulps ymm6, ymm6, ymm13 ; newImag = 2*a*b
 
-	;merge aa and bb to ymm2
+	;3- merge newReal and newImag ymm2
 	vpshufd ymm2, ymm2, 39h
 	vorps ymm2, ymm2, ymm6; bitwise OR ==> combining the values of aa and bb*i together in YMM2.
 
-	;Z = (aa+bb*i) + (ca+cb*i)
+	;4- get the new Z = (aa+bb*i) + (ca+cb*i)
 	vaddps ymm0, ymm10, ymm2
 
+	;5- check if threshold exceeded
 	;if (Math.Abs(inComplexCoord[i].x + inComplexCoord[i].y) > 16)
 	;a - ymm4
 	;b - ymm3
 	vhaddps ymm3, ymm0, ymm0; inComplexCoord[i].x + inComplexCoord[i].y (horizontal addition)
 	
-
 	vandps ymm3, ymm3, ymm8; get the absolute values of (inComplexCoord[i].x + inComplexCoord[i].y) .
 
-	
-	;if larger break and save number of iterations--------
-	
+	;5a- if larger do not update number of iterations
 	vcmpgtps ymm3, ymm3, ymm9
 
-	vpshufd ymm3, ymm3, 00110110b
-	vmovd xmm2, r10d
+	vpshufd ymm3, ymm3, 00110110b ; shuffling to arrange in the desired way
+	vmovd xmm2, r10d ; the current iteration number (n)
 
 	vpbroadcastq ymm2, xmm2 ;takes the 64-bit value in the XMM2 register and broadcast it
 	vmovapd ymm4, [ActualIterations] ; previous values after processing in last iteration
 
 	;this part is a safe guard to not override values for pixels that are already unbounded and save their needed number of iterations that will be used for the colors
-	vandps ymm2, ymm2, ymm3 ;
-	vandpd ymm2, ymm2, [WasSet]
-	vorpd ymm2, ymm2, ymm4
+	vandps ymm2, ymm2, ymm3 ; ymm2 : either (0 -> dont update n) or (n -> might update the actual iterations counter)
 
-	vmovapd [ActualIterations], ymm2 ; save the actual iteration for each pixel where it finished processing
+	vandpd ymm2, ymm2, [WasSet] ;filter pixles that were set in previous iterations
+	vorpd ymm2, ymm2, ymm4 ;updating the iteraction counter for the current 4 pixels
 
-;the next section is checking the current z for the each pixel of the group of 4 is unbounded or not 
-; then it updates its mask (which is temporarily saved in rsi)
+	vmovapd [ActualIterations], ymm2 ; saving the actual iteration for each pixel where it finished processing to the memory so the reg can be reused
+
+;the next section is checking each pixel of the current 4 is already determined to be unbounded
+;then it updates its mask (which is temporarily saved in rsi)
 ; until all 4 pixels are set (which means they went over the threshold which means they are unbound. then we move to the next group of the next 4 pixels)
 	pextrd eax, xmm3, 0 ; extract 1 dw from xmm whic represents the state of 1 pixel
 	mov rsi, -1
 	cmp eax, 0 ;; Set first one when greater than threashold
 	je NotSet1 ;not yet bounded
-
 	mov rsi, 0
 
-;these 4 jumps are basically 
-;
-NotSet1:
+;each jump of the next 3 jumps is the above mentioned check for each pixel in the 4 
+NotSet1: ;checks 2nd pixel
 	pinsrq xmm2, rsi, 0
 	pextrd eax, xmm3, 2
 	mov rsi, -1
@@ -180,7 +182,7 @@ NotSet1:
 	je NotSet2
 	mov rsi, 0
 
-NotSet2:
+NotSet2: ;checks 3rd pixel
 	pinsrq xmm2, rsi, 1
 	vextracti128 xmm4, ymm3, 1
 	pextrd eax, xmm4, 0
@@ -189,36 +191,31 @@ NotSet2:
 	je NotSet3
 	mov rsi, 0
 
-NotSet3:
+NotSet3: ;checks 4th
 	pinsrq xmm5, rsi, 0
-
 	pextrd eax, xmm4, 2 
 	mov rsi, -1
 	cmp eax, 0 ;; Set fourth one when greater than threashold
 	je NotSet4
 	mov rsi, 0
 
-NotSet4:
-	pinsrq xmm5, rsi, 1
+NotSet4: ;either all 4 pixels are done processing and move to the next group of pixels or still at least one pixel is yet to be processed 
 
+	pinsrq xmm5, rsi, 1
 	vinserti128 ymm2, ymm2, xmm5, 1; merge xmm2 and xmm5 to ymm2, which creates was set mask
 	vmovaps [WasSet], ymm2
-
-	vhaddpd ymm2, ymm2, ymm2 
+	vhaddpd ymm2, ymm2, ymm2 ; 
 	pextrq rax, xmm2, 0
 	vextracti128 xmm2, ymm2, 1
 	pextrq rsi, xmm2, 0
 	add rax, rsi
+	;check if all were set, if yes jump(actually just move further) out to _esc
 	cmp rax, 0
 	je IterLoop_esc
 
-	;xmm2 1 0
-	;xmm5 3 2
-	;check if all were set, if yes jump(actually just move further) out to _esc
-
-	inc r10d
-	cmp r10d, r11d
-	jl IterLoop
+	inc r10d ;increase counter 
+	cmp r10d, r11d ;check if we finished all loops
+	jl IterLoop ; repeat if still more loops
 
 IterLoop_esc:
 
@@ -232,11 +229,13 @@ IterLoop_esc:
 
 	;(ymm2 - fromLow) = ymm2
 	;vxorpd ymm0, ymm0, ymm0; ymm0 = 0 - > fromLow		;
-	;vsubpd ymm2, ymm2, ymm0; ymm2 = values - fromLow	; In our case always value - 0 so skipping these steps
+	;vsubpd ymm2, ymm2, ymm0; ymm2 = values - fromLow	
+	; In our case always value - 0 so skipping these steps
 
 	;(toHigh - toLow) = ymm3
 	;vmovapd ymm3, ymmword [Ones]; ymm3 = 1.0 -> toHigh	;
-	;vsubpd ymm3, ymm3, ymm0							; again 1 - 0 is 1 always
+	;vsubpd ymm3, ymm3, ymm0							
+	; again 1 - 0 is 1 always
 
 	;(ymm2 - fromLow) * (toHigh - toLow) = ymm2
 	;vmulpd	ymm2, ymm2, ymm3; and once again 5*1 is 5 so skipping
@@ -270,39 +269,37 @@ IterLoop_esc:
 	;calculate each part of color and put it back to pixel
 	;vmovups	ymm0, ymmword ptr[rdx]
 	
+	;saving color values to the output array
 	vextractf128 xmm4, ymm2, 0
 	;first pixel
 	extractps eax, xmm4, 0
 	vmovd xmm3, eax
 	vbroadcastss xmm3, xmm3
+
 	;second
 	extractps eax, xmm4, 2
 	vmovd xmm4, eax
 	vbroadcastss xmm4, xmm4
-
 	vinsertf128 ymm3, ymm3, xmm4, 1
-
-	vmovupd ymmword ptr[rdx], ymm3 ; save two pixels data and move pointer and load data for next two	
-	add rdx, 32
-
+	vmovupd ymmword ptr[rdx], ymm3 
+	; save two pixels data and move pointer and load data for next two	
+	add rdx, 32 ;skip to the next pixel
 	vextractf128 xmm4, ymm2, 1
+
 	;third
 	extractps eax, xmm4, 0
 	vmovd xmm3, eax
 	vbroadcastss xmm3, xmm3
+
 	;fourth
 	extractps eax, xmm4, 2
 	vmovd xmm4, eax
 	vbroadcastss xmm4, xmm4
-
 	vinsertf128 ymm3, ymm3, xmm4, 1
-
 	vmovupd ymmword ptr[rdx], ymm3
-
-	add rdx, 32
-	
-	add rcx, 32
-	dec r9d
+	add rdx, 32 ; prepare address for the next time
+	add rcx, 32 ;same
+	dec r9d ;size of array left to be done
 	jnz MainLoop
 
 	ret
