@@ -1,1 +1,3 @@
-﻿
+﻿  Assembling asm.asm...
+     Creating library C:\Users\Michal\source\repos\JuliaSetCppCsAsm\x64\Debug\net6.0-windows\AsmDll.lib and object C:\Users\Michal\source\repos\JuliaSetCppCsAsm\x64\Debug\net6.0-windows\AsmDll.exp
+  AsmDll.vcxproj -> C:\Users\Michal\source\repos\JuliaSetCppCsAsm\x64\Debug\net6.0-windows\AsmDll.dll

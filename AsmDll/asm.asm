@@ -7,6 +7,7 @@ NotAlphaMask dd 3 dup (0), 0ffffffffh, 3 dup (0), 0ffffffffh
 
 AAMask dd 4 dup(0ffffffffh, 0)
 BBMask dd 4 dup(0, 0ffffffffh)
+
 ;"AAMask" and "BBMask" are each arrays of 4 doublewords, where each pair of doublewords is initialized with 0xffffffff and 0.
 
 AbsMask dd 2 dup(0, 0, 07fffffffh, 07fffffffh)
@@ -15,10 +16,12 @@ AbsMask dd 2 dup(0, 0, 07fffffffh, 07fffffffh)
 WasSet dq 4 dup(-1)
 ;an array of 8 quadwords, each initialized with the value -1 (0xffffffffffffffff).
 
+
 Ones real4 8 dup(1.0)
 ;"Ones" is an array of 4 single-precision floating-point values, each initialized with the value 1.0
 
 Threashold real4 2 dup(0.0, 0.0, 16.0, 16.0)
+
 ;"Threshold" is an array of 4 single-precision floating-point values, each pair is initialized with 0.0 and 16.0
 
 Twos real4 4 dup(0.0, 2.0)
@@ -90,7 +93,7 @@ MainLoop:
 	mov rax, -1 
 	vmovq xmm2, rax
 	vpbroadcastq ymm2, xmm2
-	vmovapd [WasSet], ymm2
+	vmovaps [WasSet], ymm2
 	mov rax, 0
 	vmovq xmm2,  rax
 	vpbroadcastq ymm2, xmm2
@@ -101,6 +104,7 @@ MainLoop:
 IterLoop:
 	;mov r10d, r8d ; to calculate actual iterations
 
+
 	vmulps ymm3, ymm0, ymm0 ;a*a, b*b, .........
 
 ;performs a bitwise AND operation on the elements
@@ -109,16 +113,19 @@ IterLoop:
 
 	vpshufd ymm2, ymm2, 93h ;0, a*a, 0, a*a ... now we have the desired "order" to get new a 
 
-	vsubps ymm2, ymm2, ymm4 ;get aa = a*a - b*b
+
+	vsubps ymm2, ymm2, ymm4 ;get newReal = a*a - b*b
 	
+
 	;now to get bb = 2*a*b
 	vandps ymm3, ymm0, ymm12 ; get b by ANDing {a , b , ....} * {Bmask}
 	vandps ymm4, ymm0, ymm11; get a
 
+
 	vpshufd ymm4, ymm4, 93h ; shuffling to arrange the data in the desired way 
 
 	vmulps ymm6, ymm3, ymm4 ;a*b
-	vmulps ymm6, ymm6, ymm13 ; bb = 2*a*b
+	vmulps ymm6, ymm6, ymm13 ; newImag = 2*a*b
 
 	;merge aa and bb to ymm2
 	vpshufd ymm2, ymm2, 39h
@@ -132,15 +139,17 @@ IterLoop:
 	;b - ymm3
 	vhaddps ymm3, ymm0, ymm0; inComplexCoord[i].x + inComplexCoord[i].y (horizontal addition)
 	
+
 	vandps ymm3, ymm3, ymm8; get the absolute values of (inComplexCoord[i].x + inComplexCoord[i].y) .
+
 	
 	;if larger break and save number of iterations--------
 	
 	vcmpgtps ymm3, ymm3, ymm9
 
 	vpshufd ymm3, ymm3, 00110110b
-
 	vmovd xmm2, r10d
+
 	vpbroadcastq ymm2, xmm2 ;takes the 64-bit value in the XMM2 register and broadcast it
 	vmovapd ymm4, [ActualIterations] ; previous values after processing in last iteration
 
@@ -158,6 +167,7 @@ IterLoop:
 	mov rsi, -1
 	cmp eax, 0 ;; Set first one when greater than threashold
 	je NotSet1 ;not yet bounded
+
 	mov rsi, 0
 
 ;these 4 jumps are basically 
@@ -192,9 +202,9 @@ NotSet4:
 	pinsrq xmm5, rsi, 1
 
 	vinserti128 ymm2, ymm2, xmm5, 1; merge xmm2 and xmm5 to ymm2, which creates was set mask
-	vmovapd [WasSet], ymm2
+	vmovaps [WasSet], ymm2
 
-	vhaddpd ymm2, ymm2, ymm2
+	vhaddpd ymm2, ymm2, ymm2 
 	pextrq rax, xmm2, 0
 	vextracti128 xmm2, ymm2, 1
 	pextrq rsi, xmm2, 0
@@ -215,7 +225,8 @@ IterLoop_esc:
 	;=======================================================
 	;Coloring
 
-	vmovapd ymm2, [ActualIterations]
+	vmovapd ymm2, [ActualIterations] ; n 0 n 0 n 0 n 0
+	;;;;;;;;;;;;;vcvtdq2ps ymm2, ymm2
 	;STEP 1: Remap actual iterations from 0-MaxTterations to 0-1 floating point
 	;ymm2 = toLow + (ymm2 - fromLow) * (toHigh - toLow) / (fromHigh - fromLow)
 

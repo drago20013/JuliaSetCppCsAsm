@@ -1,0 +1,10 @@
+﻿  julia.cpp
+C:\Users\Michal\source\repos\JuliaSetCppCsAsm\CDll\julia.cpp(64,55): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+C:\Users\Michal\source\repos\JuliaSetCppCsAsm\CDll\julia.cpp(64,49): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+     Creating library C:\Users\Michal\source\repos\JuliaSetCppCsAsm\x64\Release\net6.0-windows\CDll.lib and object C:\Users\Michal\source\repos\JuliaSetCppCsAsm\x64\Release\net6.0-windows\CDll.exp
+  Generating code
+  3 of 6 functions (50.0%) were compiled, the rest were copied from previous compilation.
+    1 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  CDll.vcxproj -> C:\Users\Michal\source\repos\JuliaSetCppCsAsm\x64\Release\net6.0-windows\CDll.dll
