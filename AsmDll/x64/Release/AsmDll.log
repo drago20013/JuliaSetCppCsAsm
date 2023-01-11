@@ -1,5 +1,4 @@
-﻿D:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(520,5): warning MSB8004: Output Directory does not end with a trailing slash.  This build instance will add the slash as it is required to allow proper evaluation of the Output Directory.
-  Assembling asm.asm...
-     Creating library C:\Users\Michal\source\repos\JuliaSet\x64\Release\net6.0-windows\AsmDll.lib and object C:\Users\Michal\source\repos\JuliaSet\x64\Release\net6.0-windows\AsmDll.exp
+﻿  Assembling asm.asm...
+     Creating library C:\Users\Michal\source\repos\JuliaSetCppCsAsm\x64\Release\net6.0-windows\AsmDll.lib and object C:\Users\Michal\source\repos\JuliaSetCppCsAsm\x64\Release\net6.0-windows\AsmDll.exp
   LINK : /LTCG specified but no code generation required; remove /LTCG from the link command line to improve linker performance
-  AsmDll.vcxproj -> C:\Users\Michal\source\repos\JuliaSet\x64\Release\net6.0-windows\AsmDll.dll
+  AsmDll.vcxproj -> C:\Users\Michal\source\repos\JuliaSetCppCsAsm\x64\Release\net6.0-windows\AsmDll.dll

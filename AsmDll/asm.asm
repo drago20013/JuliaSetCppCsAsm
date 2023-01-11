@@ -3,11 +3,11 @@ AlphaMask dd 3 dup (0ffffffffh), 0, 3 dup (0ffffffffh), 0
 NotAlphaMask dd 3 dup (0), 0ffffffffh, 3 dup (0), 0ffffffffh
 AAMask dd 4 dup(0ffffffffh, 0)
 BBMask dd 4 dup(0, 0ffffffffh)
-AbsMask dd 2 dup(0, 0, 07fffffffh, 07fffffffh)
-WasSet dq 4 dup(-1)
+AbsMask dd 8 dup(07fffffffh)
+WasSet dd 8 dup(-1)
 Ones real4 8 dup(1.0)
 Threashold real4 2 dup(0.0, 0.0, 16.0, 16.0)
-Twos real4 4 dup(0.0, 2.0)
+Twos real4 8 dup(2.0)
 ActualIterations dq 4 dup(0)
 MaxBrightness real4 8 dup(255.0)
 .code
@@ -48,7 +48,7 @@ MainLoop:
 	mov rax, -1 
 	vmovq xmm2, rax
 	vpbroadcastq ymm2, xmm2
-	vmovapd [WasSet], ymm2
+	vmovaps [WasSet], ymm2
 	mov rax, 0
 	vmovq xmm2,  rax
 	vpbroadcastq ymm2, xmm2
@@ -57,26 +57,22 @@ IterLoop:
 	;mov r10d, r8d ; to calculate actual iterations
 
 	vmulps ymm3, ymm0, ymm0 ;a*a and b*b
-	vmovaps ymm4, ymm3 ; duplicate
 
 	vandps ymm2, ymm3, ymm11 ; get a*a
-	vandps ymm4, ymm4, ymm12 ; get b*b
+	vandps ymm4, ymm3, ymm12 ; get b*b
 
-	vpshufd ymm2, ymm2, 93h ;not sure if this shit works
+	vpshufd ymm2, ymm2, 93h
 
-	vsubps ymm2, ymm2, ymm4 ;get aa = a*a - b*b
+	vsubps ymm2, ymm2, ymm4 ;get newReal = a*a - b*b
 	
-	;bb = 2*a*b
-	vmovaps ymm3, ymm0 ; duplicate
-	vmovaps ymm4, ymm0 ; duplicate ;already in ymm1 and ymm0
-
+	;newImag = 2*a*b
 	vandps ymm3, ymm0, ymm12 ; get b
-	vandps ymm4, ymm4, ymm11; get a
+	vandps ymm4, ymm0, ymm11 ; get a
 
 	vpshufd ymm4, ymm4, 93h
 
 	vmulps ymm6, ymm3, ymm4 ;a*b
-	vmulps ymm6, ymm6, ymm13 ; bb = 2*a*b
+	vmulps ymm6, ymm6, ymm13 ; newImag = 2*a*b
 
 	;merge aa and bb to ymm2
 	vpshufd ymm2, ymm2, 39h
@@ -91,28 +87,24 @@ IterLoop:
 	vhaddps ymm3, ymm0, ymm0; inComplexCoord[i].x + inComplexCoord[i].y
 	
 	vandps ymm3, ymm3, ymm8; Abs
-
-
-	;vmovaps ymm5, [Threashold]
 	
 	;if larger break and save number of iterations--------
 	
 	vcmpgtps ymm3, ymm3, ymm9
 
 	vpshufd ymm3, ymm3, 00110110b
-
 	vmovd xmm2, r10d
 	vpbroadcastq ymm2, xmm2
 	vmovapd ymm4, [ActualIterations] ; previous values
-	vandps ymm2, ymm2, ymm3
-	vandpd ymm2, ymm2, [WasSet]
-	vorpd ymm2, ymm2, ymm4
+	vandps ymm2, ymm2, ymm3                           
+	vandps ymm2, ymm2, [WasSet]                            
+	vorpd ymm2, ymm2, ymm4 ;                     
 
 	vmovapd [ActualIterations], ymm2
-
+;==================================
 	pextrd eax, xmm3, 0
 	mov rsi, -1
-	cmp eax, 0 ;; Set first one when greater than threashold
+	cmp eax, 0 ; Set first one when greater than threashold
 	je NotSet1
 	mov rsi, 0
 
@@ -149,9 +141,9 @@ NotSet4:
 	pinsrq xmm5, rsi, 1
 
 	vinserti128 ymm2, ymm2, xmm5, 1; merge xmm2 and xmm5 to ymm2, which creates was set mask
-	vmovapd [WasSet], ymm2
+	vmovaps [WasSet], ymm2
 
-	vhaddpd ymm2, ymm2, ymm2
+	vhaddpd ymm2, ymm2, ymm2 
 	pextrq rax, xmm2, 0
 	vextracti128 xmm2, ymm2, 1
 	pextrq rsi, xmm2, 0
@@ -172,7 +164,8 @@ IterLoop_esc:
 	;=======================================================
 	;Coloring
 
-	vmovapd ymm2, [ActualIterations]
+	vmovapd ymm2, [ActualIterations] ; n 0 n 0 n 0 n 0
+	;;;;;;;;;;;;;vcvtdq2ps ymm2, ymm2
 	;STEP 1: Remap actual iterations from 0-MaxTterations to 0-1 floating point
 	;ymm2 = toLow + (ymm2 - fromLow) * (toHigh - toLow) / (fromHigh - fromLow)
 

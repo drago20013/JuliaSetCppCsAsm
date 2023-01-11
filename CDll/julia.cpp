@@ -61,9 +61,15 @@ void JuliaCpp(ComplexCoord* inCoord, Pixel* outBMP, UserSettings settings) {
         }
         else
         {
-            outBMP[i].r = Remap((float)sqrt(Remap(n, 0, maxIterations, 0, 1)), 0, 1, 0, 255);
-            outBMP[i].g = Remap((float)sqrt(Remap(n, 0, maxIterations, 0, 1)), 0, 1, 0, 255);
-            outBMP[i].b = Remap((float)sqrt(Remap(n, 0, maxIterations, 0, 1)), 0, 1, 0, 255);
+            float val = Remap((float)sqrt(Remap(n, 0, maxIterations, 0, 1)), 0, 1, 0, 255);
+            outBMP[i].r = val;
+            outBMP[i].g = val;
+            outBMP[i].b = val;
         }
+       /* else{
+            outBMP[i].r = n;
+            outBMP[i].g = n;
+            outBMP[i].b = n;
+        }*/
     }
 }
