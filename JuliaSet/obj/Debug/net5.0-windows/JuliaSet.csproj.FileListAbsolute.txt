@@ -1,5 +1,0 @@
-C:\Users\Michal\source\repos\JuliaSet\JuliaSet\obj\Debug\net5.0-windows\JuliaSet.csproj.AssemblyReference.cache
-C:\Users\Michal\source\repos\JuliaSet\JuliaSet\obj\Debug\net5.0-windows\MainWindow.g.cs
-C:\Users\Michal\source\repos\JuliaSet\JuliaSet\obj\Debug\net5.0-windows\App.g.cs
-C:\Users\Michal\source\repos\JuliaSet\JuliaSet\obj\Debug\net5.0-windows\JuliaSet_MarkupCompile.cache
-C:\Users\Michal\source\repos\JuliaSet\JuliaSet\obj\Debug\net5.0-windows\JuliaSet_MarkupCompile.lref
