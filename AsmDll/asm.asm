@@ -13,7 +13,7 @@ BBMask dd 4 dup(0, 0ffffffffh)
 AbsMask dd 2 dup(0, 0, 07fffffffh, 07fffffffh)
 ;"AbsMask" is an array of 4 doublewords, each pair is initialised as 0 and 0x7fffffff which representing the absolute value of the 2's complement representation of a signed 32-bit integer.
 
-WasSet dq 4 dup(-1)
+WasSet dd 8 dup(-1)
 ;an array of 8 quadwords, each initialized with the value -1 (0xffffffffffffffff).
 
 
@@ -59,8 +59,8 @@ JuliaAsm proc
 
 	;4- preparing the maxIterations counter
 	;The next group of instructions are related to broadcasting, by that it loads 64-bit value from R11 into xmm10, then duplicating the 64-bit value from xmm10 into xmm10 and then 128-bit value from xmm10 into ymm10. Then this ymm10 is loaded into another register ymm7 for the purpose of MaxIterations.
-	vmovq  xmm10, r11
-	vpbroadcastq ymm10, xmm10
+	vmovd  xmm10, r11d
+	vpbroadcastd ymm10, xmm10
 	vmovapd ymm7, ymm10 ;ymm7 = maxIterations
 
 	;5- initiating C
@@ -159,7 +159,7 @@ IterLoop:
 	;this part is a safe guard to not override values for pixels that are already unbounded and save their needed number of iterations that will be used for the colors
 	vandps ymm2, ymm2, ymm3 ; ymm2 : either (0 -> dont update n) or (n -> might update the actual iterations counter)
 
-	vandpd ymm2, ymm2, [WasSet] ;filter pixles that were set in previous iterations
+	vandps ymm2, ymm2, [WasSet] ;filter pixles that were set in previous iterations
 	vorpd ymm2, ymm2, ymm4 ;updating the iteraction counter for the current 4 pixels
 
 	vmovapd [ActualIterations], ymm2 ; saving the actual iteration for each pixel where it finished processing to the memory so the reg can be reused
@@ -185,6 +185,7 @@ NotSet1: ;checks 2nd pixel
 NotSet2: ;checks 3rd pixel
 	pinsrq xmm2, rsi, 1
 	vextracti128 xmm4, ymm3, 1
+
 	pextrd eax, xmm4, 0
 	mov rsi, -1
 	cmp eax, 0 ;; Set third one when greater than threashold
@@ -203,8 +204,9 @@ NotSet4: ;either all 4 pixels are done processing and move to the next group of 
 
 	pinsrq xmm5, rsi, 1
 	vinserti128 ymm2, ymm2, xmm5, 1; merge xmm2 and xmm5 to ymm2, which creates was set mask
+	vandps	ymm2, ymm2, [WasSet]
 	vmovaps [WasSet], ymm2
-	vhaddpd ymm2, ymm2, ymm2 ; 
+	vhaddpd ymm2, ymm2, ymm2
 	pextrq rax, xmm2, 0
 	vextracti128 xmm2, ymm2, 1
 	pextrq rsi, xmm2, 0

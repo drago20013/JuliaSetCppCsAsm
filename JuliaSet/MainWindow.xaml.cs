@@ -111,41 +111,45 @@ namespace JuliaSet
 
             //==============================
 
+
+            
+
+
             //TESTING ====================================
-            /*
-                        ComplexCoord[] testASM = new ComplexCoord[size];
-                        ComplexCoord[] testCPP = new ComplexCoord[size];
-                        for (int i = 0; i < size; i++) testASM[i] = newComplexCoord[8156];
-                        for (int i = 0; i < size; i++) testCPP[i] = newComplexCoord[8156];
-                        UserSettings testSettings = new UserSettings(-0.8f, 0.156f, size, 255);
 
-                        unsafe
-                        {
-                            fixed (Pixel* outBMPAddr = outBMPCPP)
-                            {
-                                fixed (ComplexCoord* newCoordCPPAddr = testCPP)
-                                {
-                                    JuliaCpp(newCoordCPPAddr, outBMPAddr, testSettings);
-                                }
-                            }
-                        }
+/*            ComplexCoord[] testASM = new ComplexCoord[size];
+            ComplexCoord[] testCPP = new ComplexCoord[size];
+            for (int i = 0; i < size; i++) testASM[i] = newComplexCoord[8156];
+            for (int i = 0; i < size; i++) testCPP[i] = newComplexCoord[8156];
+            UserSettings testSettings = new UserSettings(-0.8f, 0.156f, size, 255);
 
-                        unsafe
-                        {
-                            fixed (ComplexCoord* cordAddr = testASM)
-                            {
-                                fixed (Pixel* outBMPAddr = outBMPASM)
-                                {
-                                    JuliaAsm(cordAddr, outBMPAddr, testSettings);
-                                }
-                            }
-                        }
+            unsafe
+            {
+                fixed (Pixel* outBMPAddr = outBMPCPP)
+                {
+                    fixed (ComplexCoord* newCoordCPPAddr = testCPP)
+                    {
+                        JuliaCpp(newCoordCPPAddr, outBMPAddr, testSettings);
+                    }
+                }
+            }
 
-                        for(int i = 0; i < size; i++)
-                        {
-                            if (outBMPCPP[i].r != outBMPASM[i].r) throw new Exception();
-                        }            
-            */
+            unsafe
+            {
+                fixed (ComplexCoord* cordAddr = testASM)
+                {
+                    fixed (Pixel* outBMPAddr = outBMPASM)
+                    {
+                        JuliaAsm(cordAddr, outBMPAddr, testSettings);
+                    }
+                }
+            }
+
+            for (int i = 0; i < size; i++)
+            {
+                if (outBMPCPP[i].r != outBMPASM[i].r) throw new Exception();
+            }*/
+
             //============================================
 
 
@@ -157,7 +161,7 @@ namespace JuliaSet
                 for (int x = 0; x < width; ++x)
                 {
                     inComplexCoord[y * width + x].x = Remap(x, 0, width, -zoomV, zoomV);
-                    inComplexCoord[y * width + x].y = Remap(y, 0, height, -zoomV, zoomV);
+                    inComplexCoord[y * width + x].y = Remap(y, 0, height, zoomV, -zoomV);
                 }
             }
         }
@@ -259,8 +263,15 @@ namespace JuliaSet
 
         private void cReal_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if(cReal.Text != "-" && cReal.Text != "+" && cReal.Text != "")
-                settings.c_real = float.Parse(cReal.Text);
+            if (cReal.Text != "-" && cReal.Text != "+" && cReal.Text != "" && cReal.Text != ".")
+                try
+                {
+                    settings.c_real = float.Parse(cReal.Text);
+                }
+                catch (Exception ex)
+                {
+
+                }
         }
 
         private void zoom_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -269,15 +280,28 @@ namespace JuliaSet
         }
         private void cImag_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (cImag.Text != "-" && cImag.Text != "+" && cImag.Text != "")
-                settings.c_imag = float.Parse(cImag.Text);
+            if (cImag.Text != "-" && cImag.Text != "+" && cImag.Text != "" && cReal.Text != ".")
+                try
+                {
+                    settings.c_imag = float.Parse(cImag.Text);
+                }
+                catch (Exception ex)
+                {
+
+                }
         }
 
         private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
         {
-            Regex regex = new Regex("[^0-9]+");
+            Regex regex = new Regex("/^-?(0|[1-9]\\d*)(\\.\\d+)?$/");
             e.Handled = regex.IsMatch(e.Text);
         }
+        
+        struct testing {
+            public ComplexCoord asmCoord;
+            public int Index;
+            public ComplexCoord cppCoord;
+        };
 
         private void button_Click(object sender, RoutedEventArgs e)
         {
@@ -341,6 +365,39 @@ namespace JuliaSet
 
             time = time / 10;
             cppTime.Text = time.ToString() + "ms.";
+
+            int a = 0; //index for tmps
+            testing[] tmp = new testing[1000]; //containers for points which are different
+
+            ComplexCoord[] clear = new ComplexCoord[4];
+            clear[0] = newComplexCoordASM[3400];
+            clear[1] = newComplexCoordASM[3401];
+            clear[2] = newComplexCoordASM[3402];
+            clear[3] = newComplexCoordASM[3403];
+
+
+            for (int i = 0; i < size; i++)
+            {             //itereting through whole canva and checking if cpp and assembly output is different
+                if (outBMPCPP[i].r != outBMPASM[i].r)    //checking only red channel since they are all the same
+                {
+                    tmp[a].asmCoord = newComplexCoordASM[i];     //saving assembly points 
+                    tmp[a].cppCoord = newComplexCoordCPP[i];     //saving cpp points
+                    tmp[a].Index = i;
+                    a++;
+                }
+            }
+
+            settings.size = 4;
+            unsafe
+            {
+                fixed (ComplexCoord* cordAddr = clear)
+                {
+                    fixed (Pixel* outBMPAddr = outBMPASM)
+                    {
+                        JuliaAsm(cordAddr, outBMPAddr, settings);
+                    }
+                }
+            }
 
             for (int i = 0; i < size; i++)
             {
